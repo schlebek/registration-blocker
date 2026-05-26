@@ -3,7 +3,7 @@ Contributors: chlebek
 Tags: registration, block registration, security, users, members
 Requires at least: 5.9
 Tested up to: 6.7
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html

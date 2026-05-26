@@ -3,7 +3,7 @@
  * Plugin Name:       Registration Blocker
  * Plugin URI:        https://chlebek.me
  * Description:       Disables user registration site-wide — WordPress core, WooCommerce, BuddyPress, Ultimate Member, REST API and more. Logs blocked attempts.
- * Version:           1.1.0
+ * Version:           1.2.0
  * Requires at least: 5.9
  * Requires PHP:      7.4
  * Tested up to:      6.7
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'RB_VERSION', '1.1.0' );
+define( 'RB_VERSION', '1.2.0' );
 define( 'RB_FILE', __FILE__ );
 
 final class Registration_Blocker {
@@ -181,6 +181,12 @@ final class Registration_Blocker {
 		add_action( 'login_form_register', [ $this, 'redirect_away' ] );
 		add_action( 'login_init', [ $this, 'block_login_register_action' ] );
 		add_action( 'template_redirect', [ $this, 'redirect_registration_pages' ] );
+
+		// Blokada niskopoziomowa — przechwytuje bezpośrednie wywołania wp_insert_user()
+		// (np. z WooCommerce, wtyczek formularzy, REST API custom endpoints).
+		// Filtr wp_pre_insert_user_data może zwrócić WP_Error i przerwać insert przed
+		// jakimkolwiek zapisem do bazy. Dostępny od WP 5.8 (plugin wymaga 5.9).
+		add_filter( 'wp_pre_insert_user_data', [ $this, 'block_direct_user_insert' ], 1, 4 );
 	}
 
 	public function core_registration_error( \WP_Error $errors, string $sanitized_user_login, string $user_email ): \WP_Error {
@@ -243,6 +249,37 @@ final class Registration_Blocker {
 				exit;
 			}
 		}
+	}
+
+	/**
+	 * Blokada niskopoziomowa: przechwytuje każde bezpośrednie wp_insert_user().
+	 * Uruchamiana PRZED faktycznym insertem — WP_Error przerywa zapis.
+	 *
+	 * @param array|WP_Error $data     Dane użytkownika lub istniejący WP_Error.
+	 * @param bool           $update   true = aktualizacja istniejącego użytkownika.
+	 * @param int|null       $user_id  ID dla aktualizacji, null dla nowych.
+	 * @param array          $userdata Oryginalne dane przekazane do wp_insert_user().
+	 */
+	public function block_direct_user_insert( $data, bool $update, ?int $user_id, array $userdata ) {
+		// Nie blokuj aktualizacji istniejących użytkowników.
+		if ( $update ) {
+			return $data;
+		}
+
+		// Pozwól adminowi tworzyć konta ręcznie z panelu.
+		if ( current_user_can( 'create_users' ) ) {
+			return $data;
+		}
+
+		// Pozwól WP-CLI (np. migracje, import).
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			return $data;
+		}
+
+		$identifier = isset( $userdata['user_email'] ) ? (string) $userdata['user_email'] : '';
+		$this->log_attempt( 'wp_insert_user (direct)', $identifier );
+
+		return new \WP_Error( 'registration_blocked', $this->message );
 	}
 
 	// =========================================================================

@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-05-26
+
+### Added
+- Low-level `wp_pre_insert_user_data` filter (priority 1) that blocks any `wp_insert_user()` call from non-admins — catches direct calls from form builders, membership plugins and custom code that bypass standard registration hooks. WP_Error is returned before any database write occurs.
+- New log method label: `wp_insert_user (direct)` for attempts caught by this filter.
+
+### Fixed
+- Registrations bypassing all standard hooks (empty log) now blocked at the lowest possible level.
+
 ## [1.1.0] - 2025-05-26
 
 ### Added
