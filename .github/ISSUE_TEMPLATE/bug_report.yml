@@ -1,0 +1,64 @@
+name: Bug Report
+description: Something isn't working as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill out the fields below.
+
+  - type: input
+    id: wp_version
+    attributes:
+      label: WordPress version
+      placeholder: "e.g. 6.7"
+    validations:
+      required: true
+
+  - type: input
+    id: php_version
+    attributes:
+      label: PHP version
+      placeholder: "e.g. 8.2"
+    validations:
+      required: true
+
+  - type: input
+    id: plugin_version
+    attributes:
+      label: Registration Blocker version
+      placeholder: "e.g. 1.1.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: other_plugins
+    attributes:
+      label: Other active plugins
+      description: List any plugins that may be related to the issue (membership, e-commerce, user management).
+      placeholder: "WooCommerce 9.x, BuddyPress 12.x ..."
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: What happened? What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to ...
+        2. Click on ...
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Error messages, screenshots, logs — anything that helps.

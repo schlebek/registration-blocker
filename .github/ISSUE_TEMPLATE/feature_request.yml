@@ -1,0 +1,39 @@
+name: Feature Request
+description: Suggest a new integration or improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a plugin that Registration Blocker doesn't cover yet? Want a new feature? Let us know.
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Request type
+      options:
+        - New plugin integration
+        - New feature
+        - Improvement to existing feature
+    validations:
+      required: true
+
+  - type: input
+    id: plugin_name
+    attributes:
+      label: Plugin name (if integration request)
+      placeholder: "e.g. WP-Members, ProfileGrid"
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the feature
+      description: What should the plugin do? Why is it needed?
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Current workaround
+      description: Is there anything you're doing now to work around the missing feature?
