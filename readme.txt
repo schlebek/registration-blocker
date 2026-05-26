@@ -90,6 +90,10 @@ All plugin options (message, redirect URL, blocked attempts log) are removed fro
 
 == Changelog ==
 
+= 1.2.0 =
+* Added `wp_pre_insert_user_data` filter that intercepts direct `wp_insert_user()` calls from non-admins — blocks form builders, membership plugins and custom code bypassing standard registration hooks.
+* Fixed: registrations bypassing all standard hooks (empty log) now blocked at the lowest possible WordPress level.
+
 = 1.1.0 =
 * Added blocked attempt logging with masked IPs
 * Added admin bar status indicator ("Rejestracja: OFF")
@@ -108,6 +112,9 @@ All plugin options (message, redirect URL, blocked attempts log) are removed fro
 * Initial release
 
 == Upgrade Notice ==
+
+= 1.2.0 =
+Adds low-level blocking of direct wp_insert_user() calls. Recommended for all sites where registrations were bypassing the plugin.
 
 = 1.1.0 =
 Security improvements and admin UI overhaul. Upgrade recommended.

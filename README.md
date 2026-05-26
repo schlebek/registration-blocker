@@ -4,7 +4,7 @@
 
 **Block user registration at every level — WordPress core, WooCommerce, BuddyPress, REST API and more.**
 
-[![Version](https://img.shields.io/badge/version-1.1.0-0073aa?style=flat-square)](https://github.com/chlebek/registration-blocker/releases)
+[![Version](https://img.shields.io/badge/version-1.2.0-0073aa?style=flat-square)](https://github.com/schlebek/registration-blocker/releases)
 [![License](https://img.shields.io/badge/license-GPL--2.0--or--later-green?style=flat-square)](LICENSE)
 [![WordPress](https://img.shields.io/badge/WordPress-5.9%2B-3858e9?style=flat-square&logo=wordpress&logoColor=white)](https://wordpress.org/plugins/registration-blocker/)
 [![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4?style=flat-square&logo=php&logoColor=white)](https://php.net)
@@ -89,7 +89,7 @@ Blocked attempts are logged locally with masked IPs, visible from a clean admin 
 
 **Manual upload**
 
-1. Download the latest `.zip` from [Releases](https://github.com/chlebek/registration-blocker/releases)
+1. Download the latest `.zip` from [Releases](https://github.com/schlebek/registration-blocker/releases)
 2. Go to **Plugins → Add New Plugin → Upload Plugin**
 3. Upload the zip, then **Install Now** and **Activate**
 
@@ -141,7 +141,7 @@ See [CHANGELOG.md](CHANGELOG.md) for a full history.
 
 ## Contributing
 
-Bug reports and feature requests are welcome via [GitHub Issues](https://github.com/chlebek/registration-blocker/issues).  
+Bug reports and feature requests are welcome via [GitHub Issues](https://github.com/schlebek/registration-blocker/issues).  
 Please use the provided issue templates.
 
 ---

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: WordPress.org Support Forum
+    url: https://wordpress.org/support/plugin/registration-blocker/
+    about: For general questions and support, please use the WordPress.org forum.
+  - name: Security vulnerability
+    url: https://github.com/schlebek/registration-blocker/security/advisories/new
+    about: Report security issues privately — do not open a public issue.
