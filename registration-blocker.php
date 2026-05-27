@@ -3,7 +3,7 @@
  * Plugin Name:       Registration Blocker
  * Plugin URI:        https://chlebek.me
  * Description:       Disables user registration site-wide — WordPress core, WooCommerce, BuddyPress, Ultimate Member, REST API and more. Logs blocked attempts.
- * Version:           1.3.1
+ * Version:           1.3.2
  * Requires at least: 5.9
  * Requires PHP:      7.4
  * Tested up to:      6.7
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'RB_VERSION', '1.3.1' );
+define( 'RB_VERSION', '1.3.2' );
 define( 'RB_FILE', __FILE__ );
 
 final class Registration_Blocker {
@@ -590,10 +590,15 @@ final class Registration_Blocker {
 		// by a logged-in admin. Acts as a safety net: even if another plugin
 		// bypasses wp_pre_insert_user_data and creates a user, the notification
 		// email to the site admin is still suppressed.
-		add_filter( 'wp_new_user_notification_email_admin', [ $this, 'suppress_registration_email_admin' ], 99, 2 );
+		add_filter( 'wp_new_user_notification_email_admin', [ $this, 'suppress_registration_email_admin' ], PHP_INT_MAX, 2 );
 
 		// Same for WooCommerce "New account" customer email.
 		add_filter( 'woocommerce_email_enabled_customer_new_account', [ $this, 'suppress_woo_new_account_email' ], 99 );
+
+		// Short-circuit wp_mail() for registration notifications sent by third-party
+		// plugins independently of WP's wp_new_user_notification() — i.e. before or
+		// outside of wp_insert_user(). Returning true pretends the mail was sent.
+		add_filter( 'pre_wp_mail', [ $this, 'preempt_registration_mail' ], 1, 2 );
 	}
 
 	public function suppress_registration_email_admin( array $email, \WP_User $user ): array {
@@ -609,6 +614,48 @@ final class Registration_Blocker {
 			return $enabled;
 		}
 		return false;
+	}
+
+	/**
+	 * Short-circuits wp_mail() when a third-party plugin sends its own registration
+	 * notification to the admin email (subject matches known patterns).
+	 * This catches the case where the email is fired before or outside wp_insert_user(),
+	 * so wp_new_user_notification_email_admin never runs.
+	 *
+	 * @param null|bool $pre  Returning non-null short-circuits wp_mail(); true = success.
+	 * @param array     $atts { to, subject, message, headers, attachments }
+	 * @return null|bool
+	 */
+	public function preempt_registration_mail( $pre, array $atts ) {
+		if ( is_user_logged_in() && current_user_can( 'create_users' ) ) {
+			return $pre;
+		}
+
+		$admin_email = strtolower( (string) get_option( 'admin_email', '' ) );
+		if ( ! $admin_email ) {
+			return $pre;
+		}
+
+		$to_raw = $atts['to'] ?? '';
+		$to     = strtolower( is_array( $to_raw ) ? implode( ',', $to_raw ) : (string) $to_raw );
+
+		if ( false === strpos( $to, $admin_email ) ) {
+			return $pre;
+		}
+
+		$subject  = strtolower( (string) ( $atts['subject'] ?? '' ) );
+		$keywords = [
+			'rejestracja nowego',    // WP PL: "Rejestracja nowego użytkownika"
+			'new user registration', // WP EN
+		];
+
+		foreach ( $keywords as $kw ) {
+			if ( false !== strpos( $subject, $kw ) ) {
+				return true;
+			}
+		}
+
+		return $pre;
 	}
 
 	// =========================================================================

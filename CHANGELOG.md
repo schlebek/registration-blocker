@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-05-27
+
+### Fixed
+- Admin notification emails about registration attempts no longer reach the inbox when
+  a third-party plugin sends its own email outside of `wp_new_user_notification()`.
+  Added `pre_wp_mail` filter (priority 1) that short-circuits `wp_mail()` when the
+  recipient matches the site admin email and the subject contains a known registration
+  keyword (`rejestracja nowego` / `new user registration`). Emails triggered by a
+  logged-in admin with `create_users` capability are not affected.
+- Bumped `wp_new_user_notification_email_admin` filter priority from 99 to `PHP_INT_MAX`
+  to ensure no other plugin can re-enable the notification after Registration Blocker
+  suppresses it.
+
 ## [1.3.1] - 2026-05-27
 
 ### Added
