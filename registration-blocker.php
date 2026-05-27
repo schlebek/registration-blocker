@@ -3,7 +3,7 @@
  * Plugin Name:       Registration Blocker
  * Plugin URI:        https://chlebek.me
  * Description:       Disables user registration site-wide — WordPress core, WooCommerce, BuddyPress, Ultimate Member, REST API and more. Logs blocked attempts.
- * Version:           1.3.0
+ * Version:           1.3.1
  * Requires at least: 5.9
  * Requires PHP:      7.4
  * Tested up to:      6.7
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'RB_VERSION', '1.3.0' );
+define( 'RB_VERSION', '1.3.1' );
 define( 'RB_FILE', __FILE__ );
 
 final class Registration_Blocker {
@@ -85,6 +85,7 @@ final class Registration_Blocker {
 		$this->hook_application_passwords();
 		$this->hook_rest_api();
 		$this->hook_xmlrpc();
+		$this->hook_notifications();
 		$this->hook_admin();
 	}
 
@@ -578,6 +579,36 @@ final class Registration_Blocker {
 		}
 
 		return 'wp_insert_user (direct)';
+	}
+
+	// =========================================================================
+	// Notification emails
+	// =========================================================================
+
+	private function hook_notifications(): void {
+		// Suppress "New User Registration" admin email for any user NOT created
+		// by a logged-in admin. Acts as a safety net: even if another plugin
+		// bypasses wp_pre_insert_user_data and creates a user, the notification
+		// email to the site admin is still suppressed.
+		add_filter( 'wp_new_user_notification_email_admin', [ $this, 'suppress_registration_email_admin' ], 99, 2 );
+
+		// Same for WooCommerce "New account" customer email.
+		add_filter( 'woocommerce_email_enabled_customer_new_account', [ $this, 'suppress_woo_new_account_email' ], 99 );
+	}
+
+	public function suppress_registration_email_admin( array $email, \WP_User $user ): array {
+		// Allow notification only when a privileged user manually creates an account.
+		if ( is_user_logged_in() && current_user_can( 'create_users' ) ) {
+			return $email;
+		}
+		return [];
+	}
+
+	public function suppress_woo_new_account_email( bool $enabled ): bool {
+		if ( is_user_logged_in() && current_user_can( 'create_users' ) ) {
+			return $enabled;
+		}
+		return false;
 	}
 
 	// =========================================================================

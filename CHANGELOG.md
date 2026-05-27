@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-05-27
+
+### Added
+- `wp_new_user_notification_email_admin` filter (priority 99): suppresses the WordPress
+  "New User Registration" admin email for any account not created by a logged-in admin.
+  Acts as a safety net if another plugin bypasses `wp_pre_insert_user_data` and creates
+  a user — the notification email is still blocked.
+- WooCommerce `woocommerce_email_enabled_customer_new_account` filter: suppresses the
+  "New account" email for registrations not initiated by an admin, closing an edge case
+  where WooCommerce fired the email independently of user insert success.
+
 ## [1.3.0] - 2026-05-27
 
 ### Added
