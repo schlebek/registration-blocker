@@ -3,7 +3,7 @@
  * Plugin Name:       Registration Blocker
  * Plugin URI:        https://chlebek.me
  * Description:       Disables user registration site-wide — WordPress core, WooCommerce, BuddyPress, Ultimate Member, REST API and more. Logs blocked attempts.
- * Version:           1.2.0
+ * Version:           1.3.0
  * Requires at least: 5.9
  * Requires PHP:      7.4
  * Tested up to:      6.7
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'RB_VERSION', '1.2.0' );
+define( 'RB_VERSION', '1.3.0' );
 define( 'RB_FILE', __FILE__ );
 
 final class Registration_Blocker {
@@ -43,12 +43,15 @@ final class Registration_Blocker {
 		'woo'    => [ 'label' => 'WooCommerce',             'plugin' => 'woocommerce/woocommerce.php' ],
 		'bp'     => [ 'label' => 'BuddyPress / BuddyBoss', 'plugin' => null ],
 		'um'     => [ 'label' => 'Ultimate Member',         'plugin' => 'ultimate-member/ultimate-member.php' ],
+		'nsl'    => [ 'label' => 'Nextend Social Login',   'plugin' => 'nextend-social-login/nextend-social-login.php' ],
 		'pp'     => [ 'label' => 'ProfilePress',            'plugin' => 'wp-user-avatar/wp-user-avatar.php' ],
 		'mp'     => [ 'label' => 'MemberPress',             'plugin' => null ],
 		'pmpro'  => [ 'label' => 'Paid Memberships Pro',    'plugin' => null ],
 		'rcp'    => [ 'label' => 'Restrict Content Pro',    'plugin' => null ],
 		'bbp'    => [ 'label' => 'bbPress',                 'plugin' => null ],
 		'ur'     => [ 'label' => 'User Registration',       'plugin' => null ],
+		'lp'     => [ 'label' => 'ListingPro',              'plugin' => 'listingpro-plugin/listingpro-plugin.php' ],
+		'cwpf'   => [ 'label' => 'CubeWP Forms',            'plugin' => 'cubewp-forms/cubewp-forms.php' ],
 	];
 
 	// =========================================================================
@@ -70,12 +73,16 @@ final class Registration_Blocker {
 		$this->hook_woocommerce();
 		$this->hook_buddypress();
 		$this->hook_ultimate_member();
+		$this->hook_nextend_social_login();
 		$this->hook_profilepress();
 		$this->hook_memberpress();
 		$this->hook_pmpro();
 		$this->hook_restrict_content_pro();
 		$this->hook_bbpress();
 		$this->hook_user_registration_plugin();
+		$this->hook_listingpro();
+		$this->hook_cubewp_forms();
+		$this->hook_application_passwords();
 		$this->hook_rest_api();
 		$this->hook_xmlrpc();
 		$this->hook_admin();
@@ -110,14 +117,28 @@ final class Registration_Blocker {
 	// =========================================================================
 
 	private function log_attempt( string $method, string $identifier = '' ): void {
+		$masked_ip = $this->get_masked_ip();
+		$now       = time();
+
+		$log = (array) get_option( self::LOG_OPTION, [] );
+
+		// Deduplicate: ten sam zamaskowany IP w ciągu 60 s → pomiń wpis.
+		foreach ( array_slice( $log, 0, 20 ) as $existing ) {
+			if ( isset( $existing['ip'], $existing['t'] )
+				&& $existing['ip'] === $masked_ip
+				&& ( $now - (int) $existing['t'] ) < 60
+			) {
+				return;
+			}
+		}
+
 		$entry = [
-			't'  => time(),
-			'ip' => $this->get_masked_ip(),
+			't'  => $now,
+			'ip' => $masked_ip,
 			'm'  => $method,
 			'id' => $identifier ? sanitize_text_field( mb_substr( $identifier, 0, 60 ) ) : '',
 		];
 
-		$log = (array) get_option( self::LOG_OPTION, [] );
 		array_unshift( $log, $entry );
 
 		if ( count( $log ) > self::LOG_MAX ) {
@@ -277,7 +298,7 @@ final class Registration_Blocker {
 		}
 
 		$identifier = isset( $userdata['user_email'] ) ? (string) $userdata['user_email'] : '';
-		$this->log_attempt( 'wp_insert_user (direct)', $identifier );
+		$this->log_attempt( $this->detect_registration_source(), $identifier );
 
 		return new \WP_Error( 'registration_blocked', $this->message );
 	}
@@ -364,6 +385,28 @@ final class Registration_Blocker {
 	}
 
 	// =========================================================================
+	// Nextend Social Login
+	// =========================================================================
+
+	private function hook_nextend_social_login(): void {
+		// Wyłącza rejestrację przez social login na poziomie ustawień NSL.
+		add_filter( 'option_nextend-social-login_registration', '__return_empty_string' );
+		add_filter( 'pre_option_nextend-social-login_registration', '__return_empty_string' );
+
+		// Przechwytuje próbę tworzenia nowego użytkownika przez NSL (przed zapisem do bazy).
+		add_action( 'nextend_social_login_before_register_user', [ $this, 'nsl_block_registration' ], 1 );
+	}
+
+	public function nsl_block_registration(): void {
+		$this->log_attempt( 'Nextend Social Login' );
+		wp_die(
+			esc_html( $this->message ),
+			esc_html__( 'Zablokowano', 'registration-blocker' ),
+			[ 'response' => 403, 'back_link' => true ]
+		);
+	}
+
+	// =========================================================================
 	// ProfilePress
 	// =========================================================================
 
@@ -444,6 +487,100 @@ final class Registration_Blocker {
 	}
 
 	// =========================================================================
+	// ListingPro (CridioStudio)
+	// =========================================================================
+
+	private function hook_listingpro(): void {
+		// Przechwytuje AJAX-owe żądania rejestracji przed wywołaniem wp_insert_user().
+		add_action( 'wp_ajax_nopriv_lp_register',      [ $this, 'lp_block_registration' ], 1 );
+		add_action( 'wp_ajax_nopriv_lp_register_user', [ $this, 'lp_block_registration' ], 1 );
+		add_action( 'wp_ajax_nopriv_lp_vendor_register', [ $this, 'lp_block_registration' ], 1 );
+	}
+
+	public function lp_block_registration(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification
+		$email = isset( $_POST['user_email'] ) ? sanitize_email( wp_unslash( $_POST['user_email'] ) ) : '';
+		$this->log_attempt( 'ListingPro', $email );
+		wp_send_json_error( [ 'message' => $this->message ], 403 );
+	}
+
+	// =========================================================================
+	// CubeWP Forms
+	// =========================================================================
+
+	private function hook_cubewp_forms(): void {
+		// Przechwytuje AJAX-owe żądania formularzy rejestracyjnych CubeWP.
+		add_action( 'wp_ajax_nopriv_cwpf_submit_form',  [ $this, 'cwpf_block_ajax' ], 1 );
+		add_action( 'wp_ajax_nopriv_cubewp_form_submit', [ $this, 'cwpf_block_ajax' ], 1 );
+
+		// Filtr wywoływany przez CubeWP przed zapisem danych formularza.
+		add_filter( 'cwp_before_form_process', [ $this, 'cwpf_block_filter' ] );
+	}
+
+	public function cwpf_block_ajax(): void {
+		$this->log_attempt( 'CubeWP Forms' );
+		wp_send_json_error( [ 'message' => $this->message ], 403 );
+	}
+
+	public function cwpf_block_filter( $data ) {
+		$this->log_attempt( 'CubeWP Forms' );
+		wp_die(
+			esc_html( $this->message ),
+			esc_html__( 'Zablokowano', 'registration-blocker' ),
+			[ 'response' => 403, 'back_link' => true ]
+		);
+	}
+
+	// =========================================================================
+	// Application Passwords (WP 5.6+)
+	// =========================================================================
+
+	private function hook_application_passwords(): void {
+		// Wyłącza Application Passwords dla wszystkich poza administratorami.
+		// Dotyczy zarówno ekranu profilu (wp-admin) jak i REST API.
+		add_filter( 'wp_is_application_passwords_available_for_user', [ $this, 'block_app_passwords_for_user' ], 1, 2 );
+	}
+
+	public function block_app_passwords_for_user( bool $available, \WP_User $user ): bool {
+		return user_can( $user, 'manage_options' ) ? $available : false;
+	}
+
+	// =========================================================================
+	// Helper — wykrywanie źródła rejestracji z kontekstu AJAX
+	// =========================================================================
+
+	private function detect_registration_source(): string {
+		if ( ! defined( 'DOING_AJAX' ) || ! DOING_AJAX ) {
+			return 'wp_insert_user (direct)';
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification
+		$action = isset( $_REQUEST['action'] ) ? sanitize_key( wp_unslash( $_REQUEST['action'] ) ) : '';
+
+		$known = [
+			'lp_register'         => 'ListingPro',
+			'lp_register_user'    => 'ListingPro',
+			'lp_vendor_register'  => 'ListingPro',
+			'cwpf_submit_form'    => 'CubeWP Forms',
+			'cubewp_form_submit'  => 'CubeWP Forms',
+		];
+
+		if ( isset( $known[ $action ] ) ) {
+			return $known[ $action ];
+		}
+
+		if ( 0 === strpos( $action, 'cwp' ) || 0 === strpos( $action, 'cubewp' ) ) {
+			return 'CubeWP Forms';
+		}
+
+		if ( 0 === strpos( $action, 'lp_' ) ) {
+			return 'ListingPro';
+		}
+
+		return 'wp_insert_user (direct)';
+	}
+
+	// =========================================================================
 	// REST API
 	// =========================================================================
 
@@ -451,7 +588,7 @@ final class Registration_Blocker {
 		add_filter( 'rest_pre_dispatch', [ $this, 'rest_guard' ], 10, 3 );
 	}
 
-	public function rest_guard( mixed $result, \WP_REST_Server $server, \WP_REST_Request $request ): mixed {
+	public function rest_guard( $result, \WP_REST_Server $server, \WP_REST_Request $request ) {
 		$route  = $request->get_route();
 		$method = $request->get_method();
 
@@ -461,6 +598,15 @@ final class Registration_Blocker {
 			&& ! current_user_can( 'create_users' )
 		) {
 			$this->log_attempt( 'REST POST /users' );
+			return new \WP_Error( 'registration_blocked', $this->message, [ 'status' => 403 ] );
+		}
+
+		// Blokada Application Passwords przez REST API dla nie-adminów (WP 5.6+)
+		if ( 'POST' === $method
+			&& preg_match( '#^/wp/v2/users/\d+/application-passwords$#', $route )
+			&& ! current_user_can( 'manage_options' )
+		) {
+			$this->log_attempt( 'REST POST /application-passwords' );
 			return new \WP_Error( 'registration_blocked', $this->message, [ 'status' => 403 ] );
 		}
 

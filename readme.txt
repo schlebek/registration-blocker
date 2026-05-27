@@ -3,7 +3,7 @@ Contributors: chlebek
 Tags: registration, block registration, security, users, members
 Requires at least: 5.9
 Tested up to: 6.7
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 Requires PHP: 7.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -20,12 +20,16 @@ Registration Blocker disables user registration at every level. Unlike simply tu
 * WooCommerce — My Account and Checkout registration forms
 * BuddyPress / BuddyBoss — signup page and form submission
 * Ultimate Member
+* Nextend Social Login — blocks new account creation via Google, Facebook and X (Twitter) OAuth
 * ProfilePress
 * MemberPress
 * Paid Memberships Pro — guest registration only (existing users can change plans)
 * Restrict Content Pro
 * bbPress
 * User Registration (WPEverest)
+* ListingPro (CridioStudio) — AJAX registration for vendors and listing authors
+* CubeWP Forms — registration forms built in the CubeWP form builder
+* Application Passwords — disabled for all non-administrator users (WP 5.6+)
 * REST API — POST /wp/v2/users for non-administrators
 * REST API — user enumeration via GET /wp/v2/users for non-administrators
 * XML-RPC — wp.newUser and wp.registerNewBlog methods
@@ -90,6 +94,14 @@ All plugin options (message, redirect URL, blocked attempts log) are removed fro
 
 == Changelog ==
 
+= 1.3.0 =
+* Added Nextend Social Login integration — blocks new account creation via Google, Facebook and X OAuth.
+* Added ListingPro integration — intercepts AJAX registration requests (lp_register, lp_register_user, lp_vendor_register).
+* Added CubeWP Forms integration — intercepts AJAX form submissions and cwp_before_form_process filter.
+* Added Application Passwords blocking for non-administrators (profile screen + REST API).
+* Added log deduplication — same masked IP not logged more than once per 60 seconds.
+* Fixed PHP 7.4 compatibility — removed mixed type hints from rest_guard() (mixed requires PHP 8.0).
+
 = 1.2.0 =
 * Added `wp_pre_insert_user_data` filter that intercepts direct `wp_insert_user()` calls from non-admins — blocks form builders, membership plugins and custom code bypassing standard registration hooks.
 * Fixed: registrations bypassing all standard hooks (empty log) now blocked at the lowest possible WordPress level.
@@ -112,6 +124,9 @@ All plugin options (message, redirect URL, blocked attempts log) are removed fro
 * Initial release
 
 == Upgrade Notice ==
+
+= 1.3.0 =
+Adds Nextend Social Login, ListingPro and CubeWP Forms integrations. Fixes PHP 7.4 compatibility. Recommended for all sites.
 
 = 1.2.0 =
 Adds low-level blocking of direct wp_insert_user() calls. Recommended for all sites where registrations were bypassing the plugin.
